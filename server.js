@@ -5,6 +5,8 @@ import connectDb from './config/db.js';
 import uploadRoute from './routes/upload.js';
 import analyzeRoute from './routes/analyze.js';
 import askRoute from './routes/analyze.js';
+import userRegister from './routes/registration.js';
+import userLogin from './routes/login.js';
 const port = process.env.LOCAL_PORT;
 
 dotenv.config();
@@ -17,6 +19,8 @@ app.use(express.json());
 app.use('/api/upload', uploadRoute);
 app.use('/deepsensevideo/analyze', analyzeRoute);
 app.use('/analyze/ask', askRoute);
+app.use('/user/register', userRegister);
+app.use('/user/login', userLogin);
 
 app.get('/', (req, res) => {
     res.send('Hii, how are you all set !');
