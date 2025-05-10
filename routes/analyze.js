@@ -1,37 +1,37 @@
-
-import express from 'express';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import Video from '../models/video.js';
-import ffmpeg from 'fluent-ffmpeg';
-import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
-import { extractFrames } from 'node-video-lib';
-import axios from 'axios';
+import express from "express";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import Video from "../models/video.js";
+import ffmpeg from "fluent-ffmpeg";
+import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
+import pkg from "node-video-lib";
+const { extractFrames } = pkg;
+import axios from "axios";
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 const router = express.Router();
 
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const { videourl } = req.body;
     const API_KEY = process.env.GEMINI_API_KEY;
 
     if (!videourl) {
-      return res.status(400).json({ error: 'videourl is required' });
+      return res.status(400).json({ error: "videourl is required" });
     }
 
     // Download video and extract frames
     const response = await axios({
       url: videourl,
-      method: 'GET',
-      responseType: 'arraybuffer'
+      method: "GET",
+      responseType: "arraybuffer",
     });
 
     // Extract video metadata and key frames
     const videoData = {
       duration: 0,
       frames: [],
-      metadata: {}
+      metadata: {},
     };
 
     // Process video with ffmpeg
@@ -39,8 +39,8 @@ router.post('/', async (req, res) => {
       ffmpeg(videourl)
         .screenshots({
           count: 5,
-          folder: '/tmp',
-          filename: 'thumbnail-%i.png'
+          folder: "/tmp",
+          filename: "thumbnail-%i.png",
         })
         .ffprobe((err, data) => {
           if (!err) {
@@ -48,8 +48,8 @@ router.post('/', async (req, res) => {
             videoData.duration = data.format.duration;
           }
         })
-        .on('end', resolve)
-        .on('error', reject);
+        .on("end", resolve)
+        .on("error", reject);
     });
 
     // Use Gemini Pro for analysis
@@ -61,7 +61,7 @@ router.post('/', async (req, res) => {
         topP: 0.8,
         topK: 40,
         maxOutputTokens: 8192,
-      }
+      },
     });
 
     const analysisPrompt = `Analyze this video content:
@@ -82,22 +82,21 @@ router.post('/', async (req, res) => {
       url: videourl,
       analysis: {
         aiAnalysis: analysis,
-        metadata: videoData.metadata
-      }
+        metadata: videoData.metadata,
+      },
     });
     await newVideo.save();
 
     res.json({
       success: true,
       analysis,
-      metadata: videoData.metadata
+      metadata: videoData.metadata,
     });
-
   } catch (error) {
-    console.error('Analysis error:', error);
+    console.error("Analysis error:", error);
     res.status(500).json({
-      error: 'Analysis failed',
-      details: error.message
+      error: "Analysis failed",
+      details: error.message,
     });
   }
 });
