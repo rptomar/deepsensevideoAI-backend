@@ -1,5 +1,5 @@
 import express from 'express';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+//import { GoogleGenerativeAI } from '@google/generative-ai';
 import Registration from '../models/userregistration.js';
 import bcrypt from 'bcrypt';
 
