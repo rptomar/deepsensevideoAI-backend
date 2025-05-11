@@ -16,7 +16,6 @@ router.post("/", async (req, res) => {
   try {
     const { videourl } = req.body;
     const API_KEY = process.env.GEMINI_API_KEY;
-
     if (!videourl) {
       return res.status(400).json({ error: "videourl is required" });
     }
