@@ -96,6 +96,7 @@ router.post("/", async (req, res) => {
     console.error("Analysis error:", error);
     res.status(500).json({
       error: "Analysis failed",
+
       details: error.message,
     });
   }
