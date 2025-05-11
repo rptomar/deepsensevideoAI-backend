@@ -61,15 +61,19 @@ router.post("/", async (req, res) => {
       }
     });
 
+    const detectedObjects = Object.entries(objectCounts).map(([name, count]) => ({
+      name,
+      count,
+      confidence: Math.round((detections.find(d => d.class === name)?.score || 0) * 100)
+    }));
+
     const analysis = {
-      objects: Object.entries(objectCounts).map(([name, count]) => ({
-        name,
-        count,
-        confidence: detections.find(d => d.class === name)?.score || 0
-      })),
-      summary: `Video contains ${Object.entries(objectCounts)
-        .map(([name, count]) => `${count} ${name}(s)`)
-        .join(', ')}`
+      detectedObjects,
+      summary: detectedObjects.length > 0 
+        ? `Video contains ${detectedObjects
+            .map(obj => `${obj.count} ${obj.name}(s)`)
+            .join(', ')}`
+        : "No objects detected in video"
     };
 
     // Save to database
@@ -81,7 +85,8 @@ router.post("/", async (req, res) => {
 
     res.json({
       success: true,
-      analysis,
+      detectedObjects: analysis.detectedObjects,
+      summary: analysis.summary
     });
 
   } catch (error) {
