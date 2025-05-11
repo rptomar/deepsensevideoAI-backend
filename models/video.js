@@ -5,6 +5,7 @@ const VideoSchema = new mongoose.Schema({
   //publicId: { type: String, required: true },
   analysis: { type: Object }, // Store AI-generated analysis
   createdAt: { type: Date, default: Date.now },
+  
 });
 
 export default mongoose.model('Video', VideoSchema);

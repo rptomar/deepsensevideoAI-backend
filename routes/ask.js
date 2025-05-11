@@ -10,11 +10,13 @@ router.post('/', async (req, res) => {
 
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1/models/gemini-2-flash:generateContent`,
-      { prompt: `Based on this video analysis: ${JSON.stringify(analysis)}, answer: ${question}` },
+      { prompt: `Based on this video analysis: 
+      ${JSON.stringify(analysis)}, answer: ${question}` },
       { headers: { 'Authorization': `Bearer ${API_KEY}` } }
     );
 
     res.json(response.data);
+    
   } catch (error) {
     res.status(500).json({ error: 'Failed to process question' });
   }

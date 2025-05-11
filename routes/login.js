@@ -7,7 +7,6 @@ const router = express.Router();
 router.post('/', async (req, res) => {
   try {
     const { email, password } = req.body;
-
     // Validate input
     if (!email || !password) {
       return res.status(400).json({ error: 'All fields are required' });

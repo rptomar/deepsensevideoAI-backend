@@ -5,7 +5,6 @@ import cloudinary from '../config/cloudinary.js';
 import Video from '../models/video.js';
 
 const router = express.Router();
-
 // Configure multer with file size limit and file filter
 const upload = multer({
   storage: multer.memoryStorage(),
