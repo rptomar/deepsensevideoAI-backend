@@ -7,16 +7,33 @@ import fs from 'fs';
 import * as tf from '@tensorflow/tfjs';
 import * as mobilenet from '@tensorflow-models/mobilenet';
 import Jimp from 'jimp';
+import path from 'path';
+import os from 'os';
 
 const router = express.Router();
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
-ffmpeg.setFfprobePath(ffprobe.path);
+
+// Configure FFmpeg paths
+try {
+  ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+  ffmpeg.setFfprobePath(ffprobe.path);
+} catch (error) {
+  console.log('Using system FFmpeg installation');
+  // If the installer fails, try using system FFmpeg
+  ffmpeg.setFfmpegPath('ffmpeg');
+  ffmpeg.setFfprobePath('ffprobe');
+}
 
 router.post("/", async (req, res) => {
   try {
     const { videourl } = req.body;
     if (!videourl) {
       return res.status(400).json({ error: "videourl is required" });
+    }
+
+    // Create temp directory if it doesn't exist
+    const tempDir = path.join(os.tmpdir(), 'video-frames');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
     }
 
     // Extract frames from video using ffmpeg
@@ -26,7 +43,7 @@ router.post("/", async (req, res) => {
       ffmpeg(videourl)
         .screenshots({
           count: 5,
-          folder: '/tmp',
+          folder: tempDir,
           filename: 'frame-%i.png',
           size: '640x?'
         })
@@ -34,7 +51,8 @@ router.post("/", async (req, res) => {
           resolve();
         })
         .on('error', (err) => {
-          reject(err);
+          console.error('FFmpeg error:', err);
+          reject(new Error(`FFmpeg processing failed: ${err.message}`));
         });
     });
 
@@ -44,39 +62,59 @@ router.post("/", async (req, res) => {
     // Analyze frames
     const detections = [];
     for (let i = 1; i <= 5; i++) {
-      const imagePath = `/tmp/frame-${i}.png`;
+      const imagePath = path.join(tempDir, `frame-${i}.png`);
       
-      // Process image with Jimp
-      const image = await Jimp.read(imagePath);
-      image.resize(224, 224); // MobileNet expects 224x224 images
-      
-      // Convert Jimp image to tensor
-      const imageData = new Float32Array(224 * 224 * 3);
-      let idx = 0;
-      
-      // Process each pixel
-      for (let y = 0; y < 224; y++) {
-        for (let x = 0; x < 224; x++) {
-          const pixel = image.getPixelColor(x, y);
-          const { r, g, b } = Jimp.intToRGBA(pixel);
-          
-          // Normalize pixel values to [0, 1]
-          imageData[idx] = r / 255.0;
-          imageData[idx + 1] = g / 255.0;
-          imageData[idx + 2] = b / 255.0;
-          idx += 3;
-        }
+      if (!fs.existsSync(imagePath)) {
+        console.error(`Frame ${i} not found at path: ${imagePath}`);
+        continue;
       }
-      
-      // Create tensor with correct shape
-      const tensor = tf.tensor3d(imageData, [224, 224, 3]);
-      
-      // Get predictions
-      const predictions = await model.classify(tensor);
-      detections.push(...predictions);
-      
-      // Clean up tensor
-      tensor.dispose();
+
+      try {
+        // Process image with Jimp
+        const image = await Jimp.read(imagePath);
+        image.resize(224, 224); // MobileNet expects 224x224 images
+        
+        // Convert Jimp image to tensor
+        const imageData = new Float32Array(224 * 224 * 3);
+        let idx = 0;
+        
+        // Process each pixel
+        for (let y = 0; y < 224; y++) {
+          for (let x = 0; x < 224; x++) {
+            const pixel = image.getPixelColor(x, y);
+            const { r, g, b } = Jimp.intToRGBA(pixel);
+            
+            // Normalize pixel values to [0, 1]
+            imageData[idx] = r / 255.0;
+            imageData[idx + 1] = g / 255.0;
+            imageData[idx + 2] = b / 255.0;
+            idx += 3;
+          }
+        }
+        
+        // Create tensor with correct shape
+        const tensor = tf.tensor3d(imageData, [224, 224, 3]);
+        
+        // Get predictions
+        const predictions = await model.classify(tensor);
+        detections.push(...predictions);
+        
+        // Clean up tensor
+        tensor.dispose();
+
+        // Clean up the frame file
+        fs.unlinkSync(imagePath);
+      } catch (error) {
+        console.error(`Error processing frame ${i}:`, error);
+        continue;
+      }
+    }
+
+    // Clean up temp directory
+    try {
+      fs.rmdirSync(tempDir, { recursive: true });
+    } catch (error) {
+      console.error('Error cleaning up temp directory:', error);
     }
 
     // Process detections
